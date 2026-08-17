@@ -12,7 +12,7 @@ jobs:
             command: mkdir -p ~/fake-user-app
 
       - restore_cache:
-        - keys:
+           keys:
             - fake-user-app-dependencies-{{ checksum "pom.xml" }}
 
       - run:
