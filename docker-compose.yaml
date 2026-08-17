@@ -1,0 +1,49 @@
+#docker run -d
+#--name my-postgres-db
+#-e POSTGRES_USER=postgres
+#-e POSTGRES_PASSWORD="aliTalib@1997"
+#-e POSTGRES_DB=fake_user_app
+#--network my-network
+#-v my-data:/var/lib/postgresql
+#postgres:18
+
+version: '3.8'
+
+networks:
+  my-network-2:
+    driver: bridge
+
+volumes:
+  my-data-2:
+
+services:
+  my-postgres-db-2:
+    image: postgres
+    container_name: my-postgres-db-2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "aliTalib@1997"
+      POSTGRES_DB : fake_user_app
+    networks:
+      - my-network-2
+    ports:
+      - '5435:5432'
+    restart: always
+    volumes:
+       - my-data-2:/var/lib/postgresql
+
+
+  fake-user-app:
+    image: jaafar/fake-user-app:v5
+    container_name: fake-user-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://my-postgres-db-2:5432/fake_user_app
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: "aliTalib@1997"
+    depends_on:
+      - my-postgres-db-2
+
+    networks:
+      - my-network-2
