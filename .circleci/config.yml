@@ -1,34 +1,41 @@
-version 2:
+version: 2.1
 
 jobs:
   build:
     docker:
-      -image: circleci/openjdk:11-jdk
+      - image: cimg/openjdk:11.0
+
     working_directory: ~/fake-user-app
+
     steps:
       - checkout
+
       - run:
-            name: Create a Directory
-            command: mkdir -p ~/fake-user-app
+          name: Create a Directory
+          command: mkdir -p ~/fake-user-app
 
       - restore_cache:
-           keys:
+          keys:
             - fake-user-app-dependencies-{{ checksum "pom.xml" }}
 
       - run:
-           name: Build (Create JAR File)
-           command: mvn clean package -DskipTest
+          name: Build (Create JAR File)
+          command: mvn clean package -DskipTests
+
       - save_cache:
           paths:
             - ~/.m2
           key: fake-user-app-dependencies-{{ checksum "pom.xml" }}
+
       - persist_to_workspace:
           root: ~/fake-user-app
           paths:
             - .
 
   test:
-    machine: true
+    machine:
+      image: ubuntu-2404:current
+
     working_directory: ~/fake-user-app
 
     steps:
@@ -57,45 +64,52 @@ jobs:
               -Dspring.datasource.password="cydeo123."
 
   docker-image-create-and-push:
-    machine: true
+    machine:
+      image: ubuntu-2404:current
+
     working_directory: ~/fake-user-app
 
     steps:
       - attach_workspace:
           at: ~/fake-user-app
+
       - run:
-          name: create docker image
+          name: Create Docker Image
           command: docker build -t 020651500043.dkr.ecr.us-east-2.amazonaws.com/fake-user-app:latest .
+
       - run:
           name: Login to Image Repo (AWS ECR)
           command: aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 020651500043.dkr.ecr.us-east-2.amazonaws.com
+
       - run:
-          name: Push the image to ECR
+          name: Push the Image to ECR
           command: docker push 020651500043.dkr.ecr.us-east-2.amazonaws.com/fake-user-app:latest
+
   deploy:
-    machine: true
+    machine:
+      image: ubuntu-2404:current
 
     steps:
-      -run:
-        name: Connect to EC2 Server and run the image
-        command: | 
-          ssh -o "StrictHostKeyChecking=no" ubuntu@ec2-18-134-160-90.eu-west-2.compute.amazonaws.com <<'ENDSSH'
-          /bin/bash ~/fake-user-app/deploy_image.sh
-          
-          ENDSSH 
-
+      - run:
+          name: Connect to EC2 Server and run the image
+          command: |
+            ssh -o "StrictHostKeyChecking=no" ubuntu@ec2-18-134-160-90.eu-west-2.compute.amazonaws.com <<'ENDSSH'
+            /bin/bash ~/fake-user-app/deploy_image.sh
+            ENDSSH
 
 workflows:
-  version: 2
   build_test_deploy:
     jobs:
       - build
+
       - test:
           requires:
-            -build
+            - build
+
       - docker-image-create-and-push:
           requires:
-            -test
+            - test
+
       - deploy:
           requires:
-            -docker-imagee-create-and-push
+            - docker-image-create-and-push
